@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,17 +14,45 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @media print {
-            @page { margin: 2cm; }
+            /* Remove cabeçalhos e rodapés do navegador (Data, URL, Título) */
+            @page { 
+                margin: 0; 
+            }
+            body { 
+                /* Margens generosas: 2.5cm vertical e 3.5cm horizontal */
+                padding: 2.5cm 3.5cm !important;
+                margin: 0 !important;
+            }
             body, .dark { background: white !important; color: black !important; }
             .dark .prose { color: black !important; }
             .h-screen { height: auto !important; overflow: visible !important; }
+            .print\:hidden { display: none !important; }
+            
+            .preview-container {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                width: 100% !important;
+            }
         }
+        
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
         .dark ::-webkit-scrollbar-thumb { background: #334155; }
         
         html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+        
+        /* Ajuste para o container de preview na tela */
+        .preview-container {
+            padding-left: 10%;
+            padding-right: 10%;
+        }
+        @media (max-width: 1024px) {
+            .preview-container {
+                padding-left: 5%;
+                padding-right: 5%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -33,7 +61,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Versão simplificada do Lucide para React em ambiente browser
         const Icon = ({ name, size = 18, className = "" }) => {
             return <i data-lucide={name} style={{width: size, height: size}} className={className}></i>;
         };
@@ -53,21 +80,21 @@ Use a **barra de ferramentas** acima para formatar:
                 let parts = [line];
                 const imgRegex = /!\[([^\]]*)\]\(([^)]*)\)/g;
                 parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(imgRegex).map((item, i, arr) => {
-                    if (i % 3 === 1) return <img key={`img-${i}`} src={arr[i+1]} alt={item} className="max-w-full h-auto rounded-lg my-2 border border-slate-200 dark:border-slate-700" />;
+                    if (i % 3 === 1) return <img key={`img-${i}`} src={arr[i+1]} alt={item} className="max-w-full h-auto rounded-lg my-4 border border-slate-200 dark:border-slate-700" />;
                     if (i % 3 === 2) return null;
                     return item;
                 })).filter(p => p !== null);
 
                 const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
                 parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(linkRegex).map((item, i, arr) => {
-                    if (i % 3 === 1) return <a key={`link-${i}`} href={arr[i+1]} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{item}</a>;
+                    if (i % 3 === 1) return <a key={`link-${i}`} href={arr[i+1]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{item}</a>;
                     if (i % 3 === 2) return null;
                     return item;
                 })).filter(p => p !== null);
 
                 const boldRegex = /\*\*([^*]+)\*\*/g;
                 parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(boldRegex).map((item, i) => 
-                    i % 2 === 1 ? <strong key={`bold-${i}`} className="font-bold">{item}</strong> : item
+                    i % 2 === 1 ? <strong key={`bold-${i}`} className="font-bold text-slate-900 dark:text-white">{item}</strong> : item
                 ));
 
                 const italicRegex = /_([^_]+)_|\*([^*]+)\*/g;
@@ -77,22 +104,22 @@ Use a **barra de ferramentas** acima para formatar:
 
                 const codeRegex = /`([^`]+)`/g;
                 parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(codeRegex).map((item, i) => 
-                    i % 2 === 1 ? <code key={`code-${i}`} className="bg-slate-100 dark:bg-slate-700 px-1 rounded font-mono text-sm">{item}</code> : item
+                    i % 2 === 1 ? <code key={`code-${i}`} className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono text-sm border border-slate-200 dark:border-slate-600">{item}</code> : item
                 ));
                 return parts;
             };
 
             return (
-                <div className="p-8 max-w-none transition-all print:p-0">
+                <div className="preview-container py-12 transition-all print:py-0">
                     <div className="font-sans leading-relaxed text-slate-800 dark:text-slate-200">
                         {text.split('\n').map((line, i) => {
-                            if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-bold mb-4 mt-6 border-b pb-2 dark:border-slate-700">{parseInline(line.substring(2))}</h1>;
-                            if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-bold mb-3 mt-5">{parseInline(line.substring(3))}</h2>;
-                            if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-bold mb-2 mt-4">{parseInline(line.substring(4))}</h3>;
-                            if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-blue-500 pl-4 italic my-4 bg-blue-50/50 dark:bg-slate-800/50 py-1">{parseInline(line.substring(2))}</blockquote>;
-                            if (line.startsWith('- ') || line.startsWith('* ')) return <li key={i} className="ml-4 list-disc">{parseInline(line.substring(2))}</li>;
+                            if (line.startsWith('# ')) return <h1 key={i} className="text-4xl font-extrabold mb-6 mt-8 border-b pb-4 dark:border-slate-700">{parseInline(line.substring(2))}</h1>;
+                            if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-bold mb-4 mt-6 border-b border-slate-100 dark:border-slate-700 pb-2">{parseInline(line.substring(3))}</h2>;
+                            if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-bold mb-3 mt-5">{parseInline(line.substring(4))}</h3>;
+                            if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-blue-500 pl-6 italic my-6 bg-slate-50 dark:bg-slate-800/50 py-4 rounded-r-lg text-slate-600 dark:text-slate-400">{parseInline(line.substring(2))}</blockquote>;
+                            if (line.startsWith('- ') || line.startsWith('* ')) return <li key={i} className="ml-6 mb-2 list-disc pl-2">{parseInline(line.substring(2))}</li>;
                             if (line.trim() === '') return <div key={i} className="h-4" />;
-                            return <p key={i} className="mb-2">{parseInline(line)}</p>;
+                            return <p key={i} className="mb-4 text-lg">{parseInline(line)}</p>;
                         })}
                     </div>
                 </div>
@@ -104,11 +131,11 @@ Use a **barra de ferramentas** acima para formatar:
             const [isDarkMode, setIsDarkMode] = useState(false);
             const [viewMode, setViewMode] = useState('split');
             const textAreaRef = useRef(null);
+            const fileInputRef = useRef(null);
 
             useEffect(() => {
                 if (isDarkMode) document.documentElement.classList.add('dark');
                 else document.documentElement.classList.remove('dark');
-                // Inicializa ícones lucide após render
                 lucide.createIcons();
             }, [isDarkMode, markdown, viewMode]);
 
@@ -124,6 +151,29 @@ Use a **barra de ferramentas** acima para formatar:
                     const pos = start + before.length + (end - start) + after.length;
                     el.setSelectionRange(pos, pos);
                 }, 10);
+            };
+
+            const handleImport = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    setMarkdown(e.target.result);
+                };
+                reader.readAsText(file);
+                // Reset input para permitir importar o mesmo ficheiro novamente se necessário
+                event.target.value = "";
+            };
+
+            const exportMD = () => {
+                const element = document.createElement("a");
+                const file = new Blob([markdown], {type: 'text/markdown'});
+                element.href = URL.createObjectURL(file);
+                element.download = "documento.md";
+                document.body.appendChild(element);
+                element.click();
+                document.body.removeChild(element);
             };
 
             const toolbarButtons = [
@@ -152,11 +202,41 @@ Use a **barra de ferramentas** acima para formatar:
                             </button>
                             <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
                             <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
-                                <button onClick={() => setViewMode('edit')} className={`p-1.5 rounded-md ${viewMode === 'edit' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`}><Icon name="code-2" size={18} /></button>
-                                <button onClick={() => setViewMode('split')} className={`p-1.5 rounded-md ${viewMode === 'split' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`}><Icon name="columns-2" size={18} /></button>
-                                <button onClick={() => setViewMode('preview')} className={`p-1.5 rounded-md ${viewMode === 'preview' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`}><Icon name="eye" size={18} /></button>
+                                <button onClick={() => setViewMode('edit')} className={`p-1.5 rounded-md ${viewMode === 'edit' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`} title="Editar"><Icon name="code-2" size={18} /></button>
+                                <button onClick={() => setViewMode('split')} className={`p-1.5 rounded-md ${viewMode === 'split' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`} title="Dividir"><Icon name="columns-2" size={18} /></button>
+                                <button onClick={() => setViewMode('preview')} className={`p-1.5 rounded-md ${viewMode === 'preview' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`} title="Visualizar"><Icon name="eye" size={18} /></button>
                             </div>
-                            <button onClick={() => window.print()} className="ml-2 flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors"><Icon name="file-text" size={16} /> PDF</button>
+                            <div className="flex gap-2 ml-2">
+                                {/* Input escondido para Importação */}
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    onChange={handleImport} 
+                                    accept=".md,.txt" 
+                                    className="hidden" 
+                                />
+                                <button 
+                                    onClick={() => fileInputRef.current.click()} 
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-colors"
+                                    title="Importar ficheiro Markdown"
+                                >
+                                    <Icon name="upload" size={16} /> Abrir
+                                </button>
+                                <button 
+                                    onClick={exportMD} 
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium text-sm transition-colors"
+                                    title="Exportar Markdown"
+                                >
+                                    <Icon name="download" size={16} /> MD
+                                </button>
+                                <button 
+                                    onClick={() => window.print()} 
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors"
+                                    title="Exportar para PDF"
+                                >
+                                    <Icon name="file-text" size={16} /> PDF
+                                </button>
+                            </div>
                         </div>
                     </header>
 
@@ -172,18 +252,19 @@ Use a **barra de ferramentas** acima para formatar:
                                 </div>
                                 <textarea
                                     ref={textAreaRef}
-                                    className="flex-1 w-full p-6 bg-transparent resize-none focus:outline-none font-mono text-sm leading-relaxed dark:text-slate-300"
+                                    className="flex-1 w-full p-8 bg-transparent resize-none focus:outline-none font-mono text-sm leading-relaxed dark:text-slate-300"
                                     value={markdown}
                                     onChange={(e) => setMarkdown(e.target.value)}
+                                    placeholder="Comece a escrever o seu Markdown..."
                                 />
                             </div>
                         )}
                         {(viewMode === 'preview' || viewMode === 'split') && (
                             <div className={`flex flex-col h-full overflow-y-auto bg-white dark:bg-slate-800 ${viewMode === 'split' ? 'w-1/2' : 'w-full'} print:w-full`}>
-                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 uppercase tracking-widest print:hidden shrink-0">
+                                <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 uppercase tracking-widest print:hidden shrink-0">
                                     <span>Visualização</span>
                                 </div>
-                                <div className="flex-1 overflow-y-auto">
+                                <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-800">
                                     <SimpleMarkdownPreview text={markdown} />
                                 </div>
                             </div>
