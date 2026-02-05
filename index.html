@@ -1,0 +1,270 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Type, 
+  Eye, 
+  Code as CodeIcon, 
+  Download, 
+  Copy, 
+  Trash2, 
+  Moon, 
+  Sun,
+  FileText,
+  FileCode,
+  Bold,
+  Italic,
+  Link,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  Image as ImageIcon,
+  Heading1,
+  Heading2
+} from 'lucide-react';
+
+const INITIAL_MARKDOWN = `# Novo Documento
+
+Comece a editar para ver a mágica acontecer!
+
+Use a **barra de ferramentas** acima para formatar:
+- **Negrito** e _Itálico_
+- [Links úteis](https://google.com)
+- \`Código inline\`
+- ![Imagem](https://picsum.photos/200/100)`;
+
+const SimpleMarkdownPreview = ({ text }) => {
+  // Função para processar elementos inline (negrito, itálico, links, imagens, code)
+  const parseInline = (line) => {
+    let parts = [line];
+
+    // 1. Imagens: ![alt](url)
+    const imgRegex = /!\[([^\]]*)\]\(([^)]*)\)/g;
+    parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(imgRegex).map((item, i, arr) => {
+      if (i % 3 === 1) return <img key={`img-${i}`} src={arr[i+1]} alt={item} className="max-w-full h-auto rounded-lg my-2 border border-slate-200 dark:border-slate-700" />;
+      if (i % 3 === 2) return null;
+      return item;
+    })).filter(p => p !== null);
+
+    // 2. Links: [text](url)
+    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(linkRegex).map((item, i, arr) => {
+      if (i % 3 === 1) return <a key={`link-${i}`} href={arr[i+1]} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{item}</a>;
+      if (i % 3 === 2) return null;
+      return item;
+    })).filter(p => p !== null);
+
+    // 3. Negrito: **text**
+    const boldRegex = /\*\*([^*]+)\*\*/g;
+    parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(boldRegex).map((item, i) => 
+      i % 2 === 1 ? <strong key={`bold-${i}`} className="font-bold">{item}</strong> : item
+    ));
+
+    // 4. Itálico: _text_ ou *text*
+    const italicRegex = /_([^_]+)_|\*([^*]+)\*/g;
+    parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(italicRegex).map((item, i) => 
+      i % 2 === 1 ? <em key={`italic-${i}`} className="italic">{item}</em> : item
+    ));
+
+    // 5. Código Inline: `text`
+    const codeRegex = /`([^`]+)`/g;
+    parts = parts.flatMap(p => typeof p !== 'string' ? p : p.split(codeRegex).map((item, i) => 
+      i % 2 === 1 ? <code key={`code-${i}`} className="bg-slate-100 dark:bg-slate-700 px-1 rounded font-mono text-sm">{item}</code> : item
+    ));
+
+    return parts;
+  };
+
+  return (
+    <div id="preview-content" className="markdown-body p-8 prose prose-slate dark:prose-invert max-w-none transition-all print:p-0">
+      <div className="font-sans leading-relaxed text-slate-800 dark:text-slate-200">
+        {text.split('\n').map((line, i) => {
+          if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-bold mb-4 mt-6 border-b pb-2 dark:border-slate-700">{parseInline(line.substring(2))}</h1>;
+          if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-bold mb-3 mt-5">{parseInline(line.substring(3))}</h2>;
+          if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-bold mb-2 mt-4">{parseInline(line.substring(4))}</h3>;
+          if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-blue-500 pl-4 italic my-4 bg-blue-50/50 dark:bg-slate-800/50 py-1">{parseInline(line.substring(2))}</blockquote>;
+          if (line.startsWith('- ') || line.startsWith('* ')) return <li key={i} className="ml-4 list-disc">{parseInline(line.substring(2))}</li>;
+          
+          if (line.trim() === '') return <div key={i} className="h-4" />;
+          
+          return (
+            <p key={i} className="mb-2">
+              {parseInline(line)}
+            </p>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [markdown, setMarkdown] = useState(INITIAL_MARKDOWN);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [viewMode, setViewMode] = useState('split');
+  const textAreaRef = useRef(null);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  const insertAtCursor = (contentBefore, contentAfter = "") => {
+    const textarea = textAreaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentVal = textarea.value;
+    
+    const selectedText = currentVal.substring(start, end);
+    const beforeText = currentVal.substring(0, start);
+    const afterText = currentVal.substring(end);
+    
+    const newText = beforeText + contentBefore + selectedText + contentAfter + afterText;
+    
+    setMarkdown(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + contentBefore.length + selectedText.length + contentAfter.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 10);
+  };
+
+  const exportMD = () => {
+    const element = document.createElement("a");
+    const file = new Blob([markdown], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = "documento.md";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const exportPDF = () => {
+    window.print();
+  };
+
+  const handleCopyMarkdown = () => {
+    const textarea = document.createElement("textarea");
+    textarea.value = markdown;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  };
+
+  const toolbarButtons = [
+    { icon: <Heading1 size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('# '); }, title: "Título 1" },
+    { icon: <Heading2 size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('## '); }, title: "Título 2" },
+    { icon: <Bold size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('**', '**'); }, title: "Negrito" },
+    { icon: <Italic size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('_', '_'); }, title: "Itálico" },
+    { icon: <Quote size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('> '); }, title: "Citação" },
+    { icon: <Code size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('`', '`'); }, title: "Código" },
+    { icon: <Link size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('[Texto do Link]', '(https://exemplo.com)'); }, title: "Link" },
+    { icon: <ImageIcon size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('![Descrição](', 'https://picsum.photos/400/200)'); }, title: "Imagem" },
+    { icon: <List size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('- '); }, title: "Lista" },
+    { icon: <ListOrdered size={18} />, action: (e) => { e.preventDefault(); insertAtCursor('1. '); }, title: "Lista Numerada" },
+  ];
+
+  return (
+    <div className={`h-screen flex flex-col overflow-hidden ${isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      
+      <header className="flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition-colors shrink-0 print:hidden">
+        <div className="flex items-center gap-2">
+          <div className="bg-blue-600 p-1.5 rounded-lg text-white">
+            <Type size={20} />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight hidden sm:block">MD Editor Pro</h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-600 dark:text-slate-300"
+          >
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          
+          <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+          <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
+            <button onClick={() => setViewMode('edit')} className={`p-1.5 rounded-md transition-all ${viewMode === 'edit' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`}><CodeIcon size={18} /></button>
+            <button onClick={() => setViewMode('split')} className={`p-1.5 rounded-md transition-all ${viewMode === 'split' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`}><div className="flex gap-0.5 px-1"><div className="w-1.5 h-4 bg-current opacity-40 rounded-sm"></div><div className="w-1.5 h-4 bg-current opacity-40 rounded-sm"></div></div></button>
+            <button onClick={() => setViewMode('preview')} className={`p-1.5 rounded-md transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600' : 'text-slate-500'}`}><Eye size={18} /></button>
+          </div>
+
+          <div className="flex gap-2 ml-2">
+            <button onClick={exportMD} className="flex items-center gap-2 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium text-sm transition-colors"><FileCode size={16} /> .MD</button>
+            <button onClick={exportPDF} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors"><FileText size={16} /> PDF</button>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex flex-1 overflow-hidden relative h-full">
+        {(viewMode === 'edit' || viewMode === 'split') && (
+          <div className={`flex flex-col h-full border-r border-slate-200 dark:border-slate-700 ${viewMode === 'split' ? 'w-1/2' : 'w-full'} transition-all print:hidden`}>
+            <div className="flex items-center gap-1 p-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 overflow-x-auto shrink-0">
+              {toolbarButtons.map((btn, idx) => (
+                <button
+                  key={idx}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={btn.action}
+                  className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors"
+                  title={btn.title}
+                >
+                  {btn.icon}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              ref={textAreaRef}
+              className="flex-1 w-full p-6 bg-transparent resize-none focus:outline-none font-mono text-sm leading-relaxed dark:text-slate-300 h-full"
+              value={markdown}
+              onChange={(e) => setMarkdown(e.target.value)}
+              placeholder="Escreva aqui..."
+              spellCheck="false"
+            />
+          </div>
+        )}
+
+        {(viewMode === 'preview' || viewMode === 'split') && (
+          <div className={`flex flex-col h-full overflow-y-auto bg-white dark:bg-slate-800 ${viewMode === 'split' ? 'w-1/2' : 'w-full'} transition-all print:w-full print:bg-white`}>
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 uppercase tracking-widest print:hidden shrink-0">
+              <span className="flex items-center gap-2"><Eye size={12}/> Preview</span>
+              <button onClick={handleCopyMarkdown} className="hover:text-blue-600 transition-colors">Copiar Markdown</button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <SimpleMarkdownPreview text={markdown} />
+            </div>
+          </div>
+        )}
+      </main>
+
+      <footer className="px-4 py-1.5 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] text-slate-400 flex justify-between print:hidden shrink-0">
+        <div>Atalhos ativos: Seleccione texto e clique nos ícones</div>
+        <div>Editor de Markdown Online - Full Height Layout</div>
+      </footer>
+
+      <style>{`
+        @media print {
+          @page { margin: 2cm; }
+          body, .dark { background: white !important; color: black !important; }
+          .dark .prose { color: black !important; }
+          .h-screen { height: auto !important; overflow: visible !important; }
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+        
+        /* Garantir que o container pai não limite a altura */
+        html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+      `}</style>
+    </div>
+  );
+}
